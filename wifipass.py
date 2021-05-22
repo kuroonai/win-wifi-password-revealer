@@ -16,8 +16,16 @@ Created on Sun Apr 18 22:40:19 2021
 
 import os
 from collections import OrderedDict
-from tkinter import ttk
-import tkinter as tk
+import PySimpleGUI as sg
+import csv
+from datetime import datetime
+# data to be written row-wise in csv fil
+
+
+
+
+# from tkinter import ttk
+# import tkinter as tk
 
 wifis = os.popen('netsh wlan show profile').read().split('\n')
 ssids = [x.split(':')[1] for x in wifis if ':' in x]
@@ -52,33 +60,51 @@ ssidslist, pwdslist = list(zip(*pwds))[0], list(zip(*pwds))[1]
 col1max = len(max(ssidslist, key = len))
 col2max = len(max(pwdslist, key = len))
 
-rows = len(pwds)
-   
-# Creating tkinter win
-win = tk.Tk()
-win.title("Kuroonai's Wi-Fi password revealer")
-win.resizable(width = 1, height = 1)
+rows = range(1,len(pwds)+1)
+for p,r in zip(pwds,rows):
+    p.insert(0,str(r))
 
-tview = ttk.Treeview(win, selectmode ='browse')
-tview.pack(side ='left')
-verscrlbar = ttk.Scrollbar(win, orient ="vertical", command = tview.yview)
-verscrlbar.pack(side ='left', fill ='x')
+layout = [
+    [sg.Table(values=pwds, key='table',font=('',14),
+              headings=['S.No.', 'SSID','passwords'],
+              display_row_numbers=False,justification='left',
+              auto_size_columns=True,
+              num_rows=min(100, len(pwds)))],
+    [sg.In(size=(40, 1), enable_events=True, key="Folder"),
+             sg.FolderBrowse('Save table'), sg.Button('Done', key='-done-')],
 
-tview.configure(xscrollcommand = verscrlbar.set)
-tview["columns"] = ("1", "2", "3")
-tview['show'] = 'headings'
-  
-tview.column("1", width = 50, anchor ='c')
-tview.column("2", width = 200, anchor ='sw')
-tview.column("3", width = 200, anchor ='sw')
+    [sg.Text(size=(60, 2), key="savedloc", text_color='black')], 
+]
 
-tview.heading("1", text ="S.No.")
-tview.heading("2", text ="SSID")
-tview.heading("3", text ="Password")
-  
+window = sg.Window("Kuroonai's Wi-Fi password revealer", layout, icon='logo.ico', grab_anywhere=False)
 
-for i in range(rows):
-    tview.insert("", 'end', text =f"L{i+1}", 
-                 values =(f"{i+1}", f"{pwds[i][0]}", f"{pwds[i][1]}"))
 
-win.mainloop()
+
+while True:
+        event, values = window.read()
+        
+        if event == "Exit" or event == sg.WIN_CLOSED or event == '-done-':
+            break
+        
+        elif event == "table":
+            pass
+        
+        elif event == 'Folder':
+            
+            try:
+                os.chdir(values['Folder'])
+                header = ['S.No.', 'SSID', 'Passwords']
+                with open(f'WiFi pass-{datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")}.csv',\
+                            'a+', newline ='') as file:
+     
+                    write = csv.writer(file)
+                    write.writerow(header)
+                    write.writerows(pwds)
+    
+                window['savedloc'].update(f"File saved at {values['Folder']} as WiFi pass-{datetime.now().strftime('%Y_%m_%d-%I_%M_%S_%p')}.csv'")
+            except:
+                pass
+              
+            
+            
+window.close()
